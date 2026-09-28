@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e6f4ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Biberons">
+<title>Biberons de bébé</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <section id="today" class="view">
+    <h1>Aujourd'hui</h1>
+    <p id="dateLabel" class="sub"></p>
+    <div class="bottle-wrap">
+      <svg viewBox="0 0 200 340" role="img" aria-label="Biberon qui se remplit">
+        <defs>
+          <clipPath id="clip"><rect x="40" y="110" width="120" height="210" rx="30"/></clipPath>
+          <linearGradient id="milk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9f6ff"/><stop offset="1" stop-color="#8fcbf5"/></linearGradient>
+        </defs>
+        <path d="M84 96V58Q84 20 100 10Q116 20 116 58V96Z" fill="#ffe1a8" stroke="#f3c877" stroke-width="3"/>
+        <rect x="40" y="110" width="120" height="210" rx="30" fill="#fff" stroke="#bfe0f7" stroke-width="4"/>
+        <g clip-path="url(#clip)"><g id="level"><rect x="36" y="110" width="128" height="214" fill="url(#milk)"/></g></g>
+        <g stroke="#7fb6dc" stroke-width="3" stroke-linecap="round" opacity=".55">
+          <path d="M40 160h22M40 210h22M40 260h22"/>
+        </g>
+        <rect x="28" y="88" width="144" height="30" rx="14" fill="#a9dcc9" stroke="#8ccbb4" stroke-width="3"/>
+        <text x="100" y="212" text-anchor="middle" id="total" class="svg-big">0 ml</text>
+        <text x="100" y="240" text-anchor="middle" id="goalTxt" class="svg-small"></text>
+      </svg>
+    </div>
+    <p id="hint" class="hint"></p>
+    <div class="card">
+      <h2>Ajouter un biberon</h2>
+      <div class="quick">
+        <button data-q="60">+60</button><button data-q="90">+90</button>
+        <button data-q="120">+120</button><button data-q="150">+150</button>
+      </div>
+      <form id="custom" class="row">
+        <input id="cQty" type="number" inputmode="numeric" min="1" max="1000" placeholder="ml" aria-label="Quantité en ml" required>
+        <input id="cTime" type="time" aria-label="Heure" required>
+        <button class="primary" type="submit">Ajouter</button>
+      </form>
+    </div>
+    <div class="card"><h2>Biberons du jour</h2><ul id="list" class="list"></ul></div>
+  </section>
+
+  <section id="objectif" class="view" hidden>
+    <h1>Objectif</h1>
+    <p class="sub">Ce que bébé doit boire chaque jour</p>
+    <form id="goalForm" class="card">
+      <label>Quantité par jour (ml)<input id="gQty" type="number" inputmode="numeric" min="1" max="3000" required></label>
+      <label>Nombre de biberons par jour<input id="gNb" type="number" inputmode="numeric" min="1" max="20" required></label>
+      <p id="perBottle" class="hint"></p>
+      <button class="primary" type="submit">Enregistrer l'objectif</button>
+    </form>
+  </section>
+
+  <section id="history" class="view" hidden>
+    <h1>Historique</h1>
+    <div class="month">
+      <button id="prev" aria-label="Mois précédent">‹</button>
+      <strong id="monthLabel"></strong>
+      <button id="next" aria-label="Mois suivant">›</button>
+    </div>
+    <div class="seg"><button id="mList" class="on">Liste</button><button id="mCal">Calendrier</button></div>
+    <div id="summary" class="summary"></div>
+    <div id="listView"></div>
+    <div class="card" id="cal" hidden></div>
+    <div class="card" id="detail" hidden></div>
+  </section>
+</main>
+
+<nav>
+  <a href="#today"><span>🍼</span>Aujourd'hui</a>
+  <a href="#objectif"><span>🎯</span>Objectif</a>
+  <a href="#history"><span>📅</span>Historique</a>
+</nav>
+<div id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
