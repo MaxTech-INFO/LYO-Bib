@@ -50,7 +50,7 @@ async function loadToday() {
   $('#goalTxt').textContent = `sur ${goal.quantite} ml`;
   $('#hint').textContent = total >= goal.quantite
     ? '🎉 Objectif atteint !'
-    : `Encore ${goal.quantite - total} ml · environ ${Math.round(goal.quantite / goal.nb_biberons)} ml par biberon`;
+    : `Encore ${goal.quantite - total} ml · environ ${Math.round((goal.quantite - total) / (goal.nb_biberons - rows.length))} ml par biberon`;
   $('#list').innerHTML = rows.map((r) => rowHTML({ ...r, type: 'biberon' })).join('') || '<li class="empty">Aucun biberon pour le moment</li>';
   last = dern;
   paintLast();
