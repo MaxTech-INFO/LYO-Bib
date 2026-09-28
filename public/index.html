@@ -8,6 +8,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Biberons">
 <title>Biberons de bébé</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -48,6 +52,15 @@
       </form>
     </div>
     <div class="card"><h2>Biberons du jour</h2><ul id="list" class="list"></ul></div>
+    <div class="card">
+      <h2>💩 Cacas du jour <span id="pooCount" class="badge">0</span></h2>
+      <div class="row">
+        <input id="pooTime" type="time" aria-label="Heure du caca">
+        <button id="pooBtn" class="primary" type="button">Ajouter</button>
+      </div>
+      <p class="note">Sans heure, l'heure actuelle est utilisée.</p>
+      <ul id="pooList" class="list"></ul>
+    </div>
   </section>
 
   <section id="objectif" class="view" hidden>
@@ -81,6 +94,14 @@
   <a href="#objectif"><span>🎯</span>Objectif</a>
   <a href="#history"><span>📅</span>Historique</a>
 </nav>
+<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="sheet">
+    <div class="m-ico">🗑️</div>
+    <h3 id="mTitle"></h3>
+    <p id="mText"></p>
+    <div class="m-btns"><button id="mNo" type="button">Garder</button><button id="mYes" type="button">Supprimer</button></div>
+  </div>
+</div>
 <div id="toast" role="status"></div>
 <script src="app.js"></script>
 </body>

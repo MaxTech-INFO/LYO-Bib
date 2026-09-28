@@ -31,15 +31,16 @@ async function api(path, opts = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-const rowHTML = (r) => `<li><span class="t">${r.heure}</span><span class="q">${r.quantite} ml</span><button class="del" data-id="${r.id}" aria-label="Supprimer">✕</button></li>`;
-const sum = (rows) => rows.reduce((s, r) => s + r.quantite, 0);
+const rowHTML = (r) => `<li><span class="t">${r.heure}</span><span class="q">${r.type === 'caca' ? '💩 Caca' : r.quantite + ' ml'}</span><button class="del" data-id="${r.id}" data-type="${r.type}" aria-label="Supprimer">✕</button></li>`;
+const sum = (rows) => rows.reduce((s, r) => s + (r.quantite || 0), 0);
+const pooN = (l) => { const n = l.filter((r) => r.type === 'caca').length; return n ? ` · 💩 ${n}` : ''; };
 
 /* ---------- Aujourd'hui ---------- */
 async function loadToday() {
   const now = new Date();
   $('#dateLabel').textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   $('#cTime').value ||= hm(now);
-  const rows = await api('/biberons?jour=' + ymd(now));
+  const [rows, poos] = await Promise.all([api('/biberons?jour=' + ymd(now)), api('/cacas?jour=' + ymd(now))]);
   const total = sum(rows);
   $('#level').style.transform = `translateY(${(1 - Math.min(total / goal.quantite, 1)) * 214}px)`;
   $('#total').textContent = total + ' ml';
@@ -47,7 +48,9 @@ async function loadToday() {
   $('#hint').textContent = total >= goal.quantite
     ? '🎉 Objectif atteint !'
     : `Encore ${goal.quantite - total} ml · environ ${Math.round(goal.quantite / goal.nb_biberons)} ml par biberon`;
-  $('#list').innerHTML = rows.map(rowHTML).join('') || '<li class="empty">Aucun biberon pour le moment</li>';
+  $('#list').innerHTML = rows.map((r) => rowHTML({ ...r, type: 'biberon' })).join('') || '<li class="empty">Aucun biberon pour le moment</li>';
+  $('#pooCount').textContent = poos.length;
+  $('#pooList').innerHTML = poos.map((r) => rowHTML({ ...r, type: 'caca' })).join('') || '<li class="empty">Pas de caca pour le moment</li>';
 }
 async function add(q, h) {
   if (!(q > 0)) throw new Error('Quantité invalide');
@@ -62,6 +65,14 @@ $('#custom').onsubmit = safe(async (e) => {
   await add(+$('#cQty').value, $('#cTime').value);
   $('#cQty').value = '';
   $('#cTime').value = '';
+});
+
+$('#pooBtn').onclick = safe(async () => {
+  const now = new Date();
+  await api('/cacas', { method: 'POST', body: { jour: ymd(now), heure: $('#pooTime').value || hm(now) } });
+  $('#pooTime').value = '';
+  toast('Caca ajouté 💩');
+  await loadToday();
 });
 
 /* ---------- Objectif ---------- */
@@ -91,30 +102,33 @@ async function loadHistory() {
   $('#mCal').classList.toggle('on', mode === 'cal');
   $('#listView').hidden = mode !== 'list';
   $('#cal').hidden = $('#detail').hidden = mode !== 'cal';
-  const rows = await api(`/biberons?mois=${y}-${pad(m + 1)}`);
+  const q = `mois=${y}-${pad(m + 1)}`;
+  const [brows, poos] = await Promise.all([api('/biberons?' + q), api('/cacas?' + q)]);
   const by = {};
-  rows.forEach((r) => (by[r.jour] ||= []).push(r));
+  brows.forEach((r) => (by[r.jour] ||= []).push({ ...r, type: 'biberon' }));
+  poos.forEach((r) => (by[r.jour] ||= []).push({ ...r, type: 'caca' }));
+  Object.values(by).forEach((l) => l.sort((a, b) => a.heure.localeCompare(b.heure)));
   const keys = Object.keys(by).sort().reverse();
-  const total = sum(rows);
+  const total = sum(brows), milkDays = keys.filter((k) => sum(by[k]) > 0).length;
 
-  $('#summary').innerHTML = `<div><b>${total} ml</b><span>ce mois-ci</span></div><div><b>${keys.length ? Math.round(total / keys.length) : 0} ml</b><span>par jour en moyenne</span></div>`;
+  $('#summary').innerHTML = `<div><b>${total} ml</b><span>ce mois-ci</span></div><div><b>${milkDays ? Math.round(total / milkDays) : 0} ml</b><span>par jour</span></div><div><b>💩 ${poos.length}</b><span>ce mois-ci</span></div>`;
 
   // Liste : un bloc par jour (du plus récent au plus ancien) avec son total
   $('#listView').innerHTML = keys.map((k) => {
     const t = sum(by[k]), ok = t >= goal.quantite;
-    return `<div class="card"><div class="detail-head"><h2>${longDate(k)}</h2><b class="${ok ? 'ok' : ''}">${t} ml${ok ? ' ✅' : ''}</b></div><ul class="list">${by[k].map(rowHTML).join('')}</ul></div>`;
-  }).join('') || '<div class="card"><p class="hint">Aucun biberon enregistré ce mois-ci</p></div>';
+    return `<div class="card"><div class="detail-head"><h2>${longDate(k)}</h2><b class="${ok ? 'ok' : ''}">${t} ml${ok ? ' ✅' : ''}${pooN(by[k])}</b></div><ul class="list">${by[k].map(rowHTML).join('')}</ul></div>`;
+  }).join('') || '<div class="card"><p class="hint">Rien enregistré ce mois-ci</p></div>';
 
   // Calendrier
   const first = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
   let h = '<div class="dow">' + [...'LMMJVSD'].map((d) => `<b>${d}</b>`).join('') + '</div><div class="grid">' + '<i></i>'.repeat(first);
   for (let d = 1; d <= days; d++) {
     const k = `${y}-${pad(m + 1)}-${pad(d)}`, t = sum(by[k] || []);
-    h += `<button class="day${t >= goal.quantite ? ' ok' : ''}${k === today ? ' today' : ''}${k === sel ? ' sel' : ''}" data-k="${k}"><span>${d}</span><small>${t || ''}</small><em style="height:${Math.min(t / goal.quantite, 1) * 100}%"></em></button>`;
+    h += `<button class="day${t >= goal.quantite ? ' ok' : ''}${k === today ? ' today' : ''}${k === sel ? ' sel' : ''}" data-k="${k}"><span>${d}</span>${(by[k] || []).some((r) => r.type === 'caca') ? '<i class="p">💩</i>' : ''}<small>${t || ''}</small><em style="height:${Math.min(t / goal.quantite, 1) * 100}%"></em></button>`;
   }
   $('#cal').innerHTML = h + '</div>';
   const list = by[sel] || [];
-  $('#detail').innerHTML = `<div class="detail-head"><h2>${longDate(sel)}</h2><b>${sum(list)} ml</b></div><ul class="list">${list.map(rowHTML).join('') || '<li class="empty">Aucun biberon ce jour-là</li>'}</ul>`;
+  $('#detail').innerHTML = `<div class="detail-head"><h2>${longDate(sel)}</h2><b>${sum(list)} ml${pooN(list)}</b></div><ul class="list">${list.map(rowHTML).join('') || '<li class="empty">Rien ce jour-là</li>'}</ul>`;
 }
 $('#mList').onclick = safe(() => { mode = 'list'; return loadHistory(); });
 $('#mCal').onclick = safe(() => { mode = 'cal'; return loadHistory(); });
@@ -125,11 +139,37 @@ $('#cal').onclick = safe(async (e) => {
 $('#prev').onclick = safe(() => { cur = new Date(cur.getFullYear(), cur.getMonth() - 1, 1); return loadHistory(); });
 $('#next').onclick = safe(() => { cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1); return loadHistory(); });
 
+/* ---------- Fenêtre de confirmation ---------- */
+function askConfirm(title, text) {
+  return new Promise((resolve) => {
+    const m = $('#modal');
+    $('#mTitle').textContent = title;
+    $('#mText').textContent = text;
+    m.hidden = false;
+    requestAnimationFrame(() => m.classList.add('open'));
+    $('#mNo').focus();
+    const onKey = (e) => e.key === 'Escape' && done(false);
+    const done = (v) => {
+      document.removeEventListener('keydown', onKey);
+      m.classList.remove('open');
+      setTimeout(() => (m.hidden = true), 200);
+      resolve(v);
+    };
+    document.addEventListener('keydown', onKey);
+    $('#mNo').onclick = () => done(false);
+    $('#mYes').onclick = () => done(true);
+    m.onclick = (e) => e.target === m && done(false);
+  });
+}
+
 /* ---------- Suppression (aujourd'hui + historique) ---------- */
 document.addEventListener('click', safe(async (e) => {
   const b = e.target.closest('.del');
-  if (!b || !confirm('Supprimer ce biberon ?')) return;
-  await api('/biberons/' + b.dataset.id, { method: 'DELETE' });
+  if (!b) return;
+  const poo = b.dataset.type === 'caca', li = b.closest('li');
+  const ok = await askConfirm(poo ? 'Supprimer ce caca ?' : 'Supprimer ce biberon ?', `${li.querySelector('.q').textContent} · ${li.querySelector('.t').textContent}`);
+  if (!ok) return;
+  await api((poo ? '/cacas/' : '/biberons/') + b.dataset.id, { method: 'DELETE' });
   toast('Supprimé');
   await route();
 }));

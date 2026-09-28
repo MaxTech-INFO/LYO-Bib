@@ -1,9 +1,9 @@
 const express = require('express');
 const path = require('path');
-const { BASEROW_URL = 'https://api.baserow.io', BASEROW_TOKEN = 'RBwZ37mSZvoekzRkN0hnwipiylUZossP', TABLE_BIBERONS = '1226156', TABLE_OBJECTIF = '1226160', APP_PIN = '3219', PORT = 3000 } = process.env;
+const { BASEROW_URL = 'https://api.baserow.io', BASEROW_TOKEN, TABLE_BIBERONS, TABLE_OBJECTIF, TABLE_CACAS, APP_PIN, PORT = 3000 } = process.env;
 
-if (!BASEROW_TOKEN || !TABLE_BIBERONS || !TABLE_OBJECTIF) {
-  console.error('Variables manquantes : BASEROW_TOKEN, TABLE_BIBERONS, TABLE_OBJECTIF');
+if (!BASEROW_TOKEN || !TABLE_BIBERONS || !TABLE_OBJECTIF || !TABLE_CACAS) {
+  console.error('Variables manquantes : BASEROW_TOKEN, TABLE_BIBERONS, TABLE_OBJECTIF, TABLE_CACAS');
   process.exit(1);
 }
 
@@ -64,6 +64,34 @@ app.delete('/api/biberons/:id', wrap(async (req, res) => {
   res.status(204).end();
 }));
 
+const cleanPoo = (r) => ({ id: r.id, jour: r.jour, heure: r.heure });
+
+app.get('/api/cacas', wrap(async (req, res) => {
+  const { jour, mois } = req.query;
+  let filter;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(jour || '')) filter = `filter__jour__equal=${jour}`;
+  else if (/^\d{4}-\d{2}$/.test(mois || '')) filter = `filter__jour__contains=${mois}`;
+  else return res.status(400).json({ error: 'Paramètre jour ou mois invalide' });
+  const rows = await listAll(TABLE_CACAS, `${filter}&order_by=heure`);
+  res.json(rows.map(cleanPoo));
+}));
+
+app.post('/api/cacas', wrap(async (req, res) => {
+  const { jour, heure } = req.body;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour) || !/^\d{2}:\d{2}$/.test(heure)) return res.status(400).json({ error: 'Données invalides' });
+  const row = await br(`${base(TABLE_CACAS)}?user_field_names=true`, {
+    method: 'POST',
+    body: JSON.stringify({ nom: `${jour} ${heure}`, jour, heure }),
+  });
+  res.status(201).json(cleanPoo(row));
+}));
+
+app.delete('/api/cacas/:id', wrap(async (req, res) => {
+  if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: 'Id invalide' });
+  await br(`${base(TABLE_CACAS)}${req.params.id}/`, { method: 'DELETE' });
+  res.status(204).end();
+}));
+
 app.get('/api/objectif', wrap(async (_, res) => {
   const [row] = await listAll(TABLE_OBJECTIF, '');
   res.json({ quantite: Number(row?.quantite) || 600, nb_biberons: Number(row?.nb_biberons) || 6 });
@@ -80,5 +108,6 @@ app.put('/api/objectif', wrap(async (req, res) => {
   res.json({ quantite, nb_biberons: nb });
 }));
 
+app.get('/favicon.ico', (_, res) => res.sendFile(path.join(__dirname, 'public', 'favicon-32.png')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.listen(PORT, () => console.log(`Serveur prêt sur le port ${PORT}`));
