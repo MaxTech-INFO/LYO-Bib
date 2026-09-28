@@ -92,6 +92,39 @@ app.delete('/api/cacas/:id', wrap(async (req, res) => {
   res.status(204).end();
 }));
 
+const okDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v), okTime = (v) => /^\d{2}:\d{2}$/.test(v), okId = (v) => /^\d+$/.test(v);
+
+app.patch('/api/biberons/:id', wrap(async (req, res) => {
+  const { jour, heure } = req.body, q = Number(req.body.quantite);
+  if (!okId(req.params.id) || !okDay(jour) || !okTime(heure) || !Number.isInteger(q) || q < 1 || q > 1000)
+    return res.status(400).json({ error: 'Données invalides' });
+  const row = await br(`${base(TABLE_BIBERONS)}${req.params.id}/?user_field_names=true`, {
+    method: 'PATCH',
+    body: JSON.stringify({ nom: `${jour} ${heure}`, jour, heure, quantite: q }),
+  });
+  res.json(clean(row));
+}));
+
+app.patch('/api/cacas/:id', wrap(async (req, res) => {
+  const { jour, heure } = req.body;
+  if (!okId(req.params.id) || !okDay(jour) || !okTime(heure)) return res.status(400).json({ error: 'Données invalides' });
+  const row = await br(`${base(TABLE_CACAS)}${req.params.id}/?user_field_names=true`, {
+    method: 'PATCH',
+    body: JSON.stringify({ nom: `${jour} ${heure}`, jour, heure }),
+  });
+  res.json(cleanPoo(row));
+}));
+
+// Dernier biberon et dernier caca (tous jours confondus)
+const latest = async (t) => {
+  const d = await br(`${base(t)}?user_field_names=true&size=1&order_by=-jour,-heure`);
+  return d.results[0] || null;
+};
+app.get('/api/derniers', wrap(async (_, res) => {
+  const [b, c] = await Promise.all([latest(TABLE_BIBERONS), latest(TABLE_CACAS)]);
+  res.json({ biberon: b && clean(b), caca: c && cleanPoo(c) });
+}));
+
 app.get('/api/objectif', wrap(async (_, res) => {
   const [row] = await listAll(TABLE_OBJECTIF, '');
   res.json({ quantite: Number(row?.quantite) || 600, nb_biberons: Number(row?.nb_biberons) || 6 });

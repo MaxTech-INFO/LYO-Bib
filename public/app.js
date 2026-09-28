@@ -7,11 +7,15 @@ let goal = { quantite: 600, nb_biberons: 6 };
 let pin = localStorage.getItem('pin') || '';
 let cur = new Date(), sel = ymd(new Date());
 
-function toast(msg) {
-  const t = $('#toast');
-  t.textContent = msg;
+let toastT;
+function toast(msg, undo) {
+  const t = $('#toast'), btn = $('#toastBtn');
+  $('#toastMsg').textContent = msg;
+  btn.hidden = !undo;
+  btn.onclick = undo ? safe(async () => { t.classList.remove('show'); await undo(); }) : null;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2600);
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('show'), undo ? 6000 : 2600);
 }
 const safe = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message); } };
 
@@ -22,8 +26,7 @@ async function api(path, opts = {}) {
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   if (res.status === 401) {
-    pin = prompt("Code d'accès ?") || '';
-    if (!pin) throw new Error('Code requis');
+    pin = await askPin(pin ? 'Code incorrect, réessaie' : '');
     localStorage.setItem('pin', pin);
     return api(path, opts);
   }
@@ -31,7 +34,7 @@ async function api(path, opts = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-const rowHTML = (r) => `<li><span class="t">${r.heure}</span><span class="q">${r.type === 'caca' ? '💩 Caca' : r.quantite + ' ml'}</span><button class="del" data-id="${r.id}" data-type="${r.type}" aria-label="Supprimer">✕</button></li>`;
+const rowHTML = (r) => `<li data-id="${r.id}" data-type="${r.type}" data-jour="${r.jour}" data-heure="${r.heure}" data-q="${r.quantite || ''}"><span class="t">${r.heure}</span><span class="q">${r.type === 'caca' ? '💩 Caca' : r.quantite + ' ml'}</span><span class="pen" aria-hidden="true">✎</span><button class="del" data-id="${r.id}" data-type="${r.type}" aria-label="Supprimer">✕</button></li>`;
 const sum = (rows) => rows.reduce((s, r) => s + (r.quantite || 0), 0);
 const pooN = (l) => { const n = l.filter((r) => r.type === 'caca').length; return n ? ` · 💩 ${n}` : ''; };
 
@@ -40,7 +43,7 @@ async function loadToday() {
   const now = new Date();
   $('#dateLabel').textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   $('#cTime').value ||= hm(now);
-  const [rows, poos] = await Promise.all([api('/biberons?jour=' + ymd(now)), api('/cacas?jour=' + ymd(now))]);
+  const [rows, poos, dern] = await Promise.all([api('/biberons?jour=' + ymd(now)), api('/cacas?jour=' + ymd(now)), api('/derniers')]);
   const total = sum(rows);
   $('#level').style.transform = `translateY(${(1 - Math.min(total / goal.quantite, 1)) * 214}px)`;
   $('#total').textContent = total + ' ml';
@@ -49,14 +52,21 @@ async function loadToday() {
     ? '🎉 Objectif atteint !'
     : `Encore ${goal.quantite - total} ml · environ ${Math.round(goal.quantite / goal.nb_biberons)} ml par biberon`;
   $('#list').innerHTML = rows.map((r) => rowHTML({ ...r, type: 'biberon' })).join('') || '<li class="empty">Aucun biberon pour le moment</li>';
+  last = dern;
+  paintLast();
   $('#pooCount').textContent = poos.length;
   $('#pooList').innerHTML = poos.map((r) => rowHTML({ ...r, type: 'caca' })).join('') || '<li class="empty">Pas de caca pour le moment</li>';
 }
+const undoer = (path, row) => async () => {
+  await api(`${path}/${row.id}`, { method: 'DELETE' });
+  toast('Ajout annulé');
+  await route();
+};
 async function add(q, h) {
   if (!(q > 0)) throw new Error('Quantité invalide');
   const now = new Date();
-  await api('/biberons', { method: 'POST', body: { jour: ymd(now), heure: h || hm(now), quantite: q } });
-  toast('Biberon ajouté 🍼');
+  const row = await api('/biberons', { method: 'POST', body: { jour: ymd(now), heure: h || hm(now), quantite: q } });
+  toast('Biberon ajouté 🍼', undoer('/biberons', row));
   await loadToday();
 }
 document.querySelectorAll('[data-q]').forEach((b) => (b.onclick = safe(() => add(+b.dataset.q))));
@@ -69,9 +79,9 @@ $('#custom').onsubmit = safe(async (e) => {
 
 $('#pooBtn').onclick = safe(async () => {
   const now = new Date();
-  await api('/cacas', { method: 'POST', body: { jour: ymd(now), heure: $('#pooTime').value || hm(now) } });
+  const row = await api('/cacas', { method: 'POST', body: { jour: ymd(now), heure: $('#pooTime').value || hm(now) } });
   $('#pooTime').value = '';
-  toast('Caca ajouté 💩');
+  toast('Caca ajouté 💩', undoer('/cacas', row));
   await loadToday();
 });
 
@@ -128,7 +138,7 @@ async function loadHistory() {
   }
   $('#cal').innerHTML = h + '</div>';
   const list = by[sel] || [];
-  $('#detail').innerHTML = `<div class="detail-head"><h2>${longDate(sel)}</h2><b>${sum(list)} ml${pooN(list)}</b></div><ul class="list">${list.map(rowHTML).join('') || '<li class="empty">Rien ce jour-là</li>'}</ul>`;
+  $('#detail').innerHTML = `<div class="detail-head"><h2>${longDate(sel)}</h2><b>${sum(list)} ml${pooN(list)}</b></div><ul class="list">${list.map(rowHTML).join('') || '<li class="empty">Rien ce jour-là</li>'}</ul><button class="ghost" data-add="${sel}">+ Ajouter ce jour</button>`;
 }
 $('#mList').onclick = safe(() => { mode = 'list'; return loadHistory(); });
 $('#mCal').onclick = safe(() => { mode = 'cal'; return loadHistory(); });
@@ -138,6 +148,106 @@ $('#cal').onclick = safe(async (e) => {
 });
 $('#prev').onclick = safe(() => { cur = new Date(cur.getFullYear(), cur.getMonth() - 1, 1); return loadHistory(); });
 $('#next').onclick = safe(() => { cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1); return loadHistory(); });
+
+/* ---------- Dernier biberon / dernier caca ---------- */
+let last = { biberon: null, caca: null };
+function ago(r) {
+  if (!r) return '–';
+  const min = Math.max(0, Math.round((Date.now() - new Date(`${r.jour}T${r.heure}:00`)) / 60000));
+  if (min < 1) return "à l'instant";
+  if (min < 60) return `il y a ${min} min`;
+  if (min < 1440) return `il y a ${Math.floor(min / 60)} h ${pad(min % 60)}`;
+  return `il y a ${Math.floor(min / 1440)} j`;
+}
+function paintLast() {
+  $('#lastB').textContent = ago(last.biberon);
+  $('#lastBq').textContent = last.biberon ? `${last.biberon.quantite} ml · ${last.biberon.heure}` : '';
+  $('#lastC').textContent = ago(last.caca);
+  $('#lastCq').textContent = last.caca ? last.caca.heure : '';
+}
+setInterval(paintLast, 30000);
+
+/* ---------- Fenêtres ---------- */
+const openOv = (el) => { el.hidden = false; requestAnimationFrame(() => el.classList.add('open')); };
+const closeOv = (el) => {
+  el.classList.remove('open');
+  setTimeout(() => { if (!el.classList.contains('open')) el.hidden = true; }, 220);
+};
+
+/* ---------- Code PIN (clavier numérique) ---------- */
+$('#keys').innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, 'del']
+  .map((k) => (k === '' ? '<span></span>' : `<button type="button" data-k="${k}">${k === 'del' ? '⌫' : k}</button>`)).join('');
+let pinP = null;
+function askPin(msg) {
+  return (pinP ||= new Promise((resolve) => {
+    const box = $('#pin'), dots = $('#pinDots');
+    let code = '';
+    const paint = () => (dots.innerHTML = '<i class="on"></i>'.repeat(code.length) + '<i></i>'.repeat(4 - code.length));
+    const press = (k) => {
+      if (k === 'del') code = code.slice(0, -1);
+      else if (code.length < 4) code += k;
+      paint();
+      if (code.length === 4) {
+        document.removeEventListener('keydown', onKey);
+        setTimeout(() => { closeOv(box); resolve(code); }, 150);
+      }
+    };
+    const onKey = (e) => { if (/^\d$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('del'); };
+    $('#pinMsg').textContent = msg || 'Saisis le code pour continuer';
+    $('#pinMsg').classList.toggle('err', !!msg);
+    dots.classList.remove('shake');
+    paint();
+    if (msg) { void dots.offsetWidth; dots.classList.add('shake'); }
+    $('#keys').onclick = (e) => { const b = e.target.closest('button'); if (b) press(b.dataset.k); };
+    document.addEventListener('keydown', onKey);
+    openOv(box);
+  }).finally(() => (pinP = null)));
+}
+
+/* ---------- Ajouter un oubli / modifier une ligne ---------- */
+let editCtx = null, curType = 'biberon';
+function setType(t) {
+  curType = t;
+  document.querySelectorAll('#eType button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+  $('#eQtyL').hidden = t === 'caca';
+  $('#eQty').required = t === 'biberon';
+}
+function openEdit(ctx) {
+  editCtx = ctx.id ? ctx : null;
+  $('#eTitle').textContent = editCtx ? (ctx.type === 'caca' ? 'Modifier le caca' : 'Modifier le biberon') : 'Ajouter un oubli';
+  $('#eType').hidden = !!editCtx;
+  setType(ctx.type || 'biberon');
+  $('#eDay').max = ymd(new Date());
+  $('#eDay').value = ctx.jour || ymd(new Date());
+  $('#eTime').value = ctx.heure || hm(new Date());
+  $('#eQty').value = ctx.quantite || '';
+  openOv($('#edit'));
+}
+document.querySelectorAll('#eType button').forEach((b) => (b.onclick = () => setType(b.dataset.t)));
+$('#eNo').onclick = () => closeOv($('#edit'));
+$('#edit').onclick = (e) => e.target === $('#edit') && closeOv($('#edit'));
+$('#eForm').onsubmit = safe(async (e) => {
+  e.preventDefault();
+  const body = { jour: $('#eDay').value, heure: $('#eTime').value };
+  if (curType === 'biberon') body.quantite = +$('#eQty').value;
+  const path = curType === 'caca' ? '/cacas' : '/biberons';
+  if (editCtx) await api(`${path}/${editCtx.id}`, { method: 'PATCH', body });
+  else await api(path, { method: 'POST', body });
+  closeOv($('#edit'));
+  toast(editCtx ? 'Modifié ✅' : 'Ajouté ✅');
+  const [y, m] = body.jour.split('-');
+  cur = new Date(+y, +m - 1, 1);
+  sel = body.jour;
+  await route();
+});
+$('#addPast').onclick = () => openEdit({ jour: mode === 'cal' ? sel : ymd(new Date()) });
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.del')) return;
+  const add = e.target.closest('[data-add]');
+  if (add) return openEdit({ jour: add.dataset.add });
+  const li = e.target.closest('li[data-id]');
+  if (li) openEdit({ id: li.dataset.id, type: li.dataset.type, jour: li.dataset.jour, heure: li.dataset.heure, quantite: li.dataset.q });
+});
 
 /* ---------- Fenêtre de confirmation ---------- */
 function askConfirm(title, text) {

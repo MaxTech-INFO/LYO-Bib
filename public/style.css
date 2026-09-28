@@ -51,7 +51,7 @@ nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(sa
 nav a{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 16px;border-radius:22px;text-decoration:none;color:var(--mute);font-size:12px;font-weight:800}
 nav a span{font-size:21px}
 nav a.active{background:#e6f4ff;color:var(--blue-d)}
-#toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-90px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:14px;font-weight:700;transition:transform .3s;z-index:9}
+#toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translate(-50%,-160px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:14px;font-weight:700;transition:transform .3s;z-index:9}
 #toast.show{transform:translate(-50%,0)}
 input,button{-webkit-appearance:none;appearance:none}
 .seg{display:flex;background:#dcecf8;border-radius:16px;padding:4px;margin-top:14px}
@@ -67,16 +67,44 @@ input{min-height:48px}
 .badge{background:#fff3d6;color:#b07d1a;border-radius:10px;padding:2px 9px;font-size:14px;margin-left:6px}
 .note{margin:8px 0 4px;font-size:13px;color:var(--mute);font-weight:700}
 .day .p{position:absolute;top:2px;right:3px;font-size:10px;font-style:normal;z-index:1}
-#modal{position:fixed;top:0;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(44,74,99,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;transition:opacity .2s}
-#modal[hidden]{display:none}
-#modal.open{opacity:1}
+.ov{position:fixed;top:0;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(44,74,99,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;transition:opacity .2s}
+.ov[hidden]{display:none}
+.ov.open{opacity:1}
 .sheet{background:#fff;border-radius:28px;padding:26px 22px 20px;width:min(100%,340px);text-align:center;transform:scale(.9);transition:transform .25s cubic-bezier(.3,1.4,.5,1);box-shadow:0 20px 50px rgba(44,74,99,.3)}
-#modal.open .sheet{transform:scale(1)}
+.ov.open .sheet{transform:scale(1)}
 .m-ico{font-size:38px;width:76px;height:76px;line-height:76px;border-radius:50%;background:#ffe9e9;margin:0 auto 12px}
 .sheet h3{margin:0;font-size:20px;font-weight:800}
 .sheet p{margin:6px 0 20px;color:var(--mute);font-weight:700}
 .m-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .m-btns button{padding:14px;border-radius:16px;font-weight:800;font-size:16px}
-#mNo{background:#e6f4ff;color:var(--blue-d)}
+#mNo,#eNo{background:#e6f4ff;color:var(--blue-d)}
 #mYes{background:#ef7f7f;color:#fff}
-@media (prefers-reduced-motion:reduce){#level,#toast,#modal,.sheet{transition:none}}
+@media (prefers-reduced-motion:reduce){#level,#toast,.ov,.sheet,.dots i{transition:none}.dots.shake{animation:none}}
+
+[hidden]{display:none!important}
+#toast{display:flex;align-items:center;gap:12px;max-width:calc(100vw - 24px)}
+#toast button{background:rgba(255,255,255,.22);color:#fff;font-weight:800;padding:6px 12px;border-radius:10px}
+.last{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.last div{background:#fff;border-radius:18px;padding:12px 8px;text-align:center;box-shadow:0 6px 22px rgba(124,196,245,.2)}
+.last small{display:block;color:var(--mute);font-weight:700;font-size:13px}
+.last b{display:block;font-size:18px;color:var(--blue-d);margin:2px 0}
+.last span{font-size:12px;color:var(--mute);font-weight:700}
+.list li[data-id]{cursor:pointer}
+.pen{color:#a9c4d8;font-size:15px}
+.wide{width:100%;margin-top:12px}
+.ghost{width:100%;margin-top:10px;padding:12px;border-radius:14px;background:#e6f4ff;color:var(--blue-d);font-weight:800}
+.sheet{max-height:92%;overflow:auto}
+.sheet label{text-align:left;font-size:14px;margin-bottom:10px}
+.sheet .seg{margin:12px 0}
+#eYes{background:var(--blue-d);color:#fff}
+#pin{z-index:30}
+.pin-sheet{width:min(100%,320px)}
+#pinMsg.err{color:#d66}
+.dots{display:flex;justify-content:center;gap:16px;margin:4px 0 20px}
+.dots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--blue);transition:background .15s,transform .15s}
+.dots i.on{background:var(--blue-d);border-color:var(--blue-d);transform:scale(1.15)}
+.dots.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.keys button{height:58px;border-radius:18px;background:#eef7fe;color:var(--ink);font-size:24px;font-weight:800}
+.keys button:active{background:var(--blue);color:#fff}

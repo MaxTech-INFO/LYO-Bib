@@ -15,7 +15,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="./icon-site.png">
 </head>
 <body>
 <main>
@@ -40,6 +39,10 @@
       </svg>
     </div>
     <p id="hint" class="hint"></p>
+    <div class="last">
+      <div><small>🍼 Dernier biberon</small><b id="lastB">–</b><span id="lastBq"></span></div>
+      <div><small>💩 Dernier caca</small><b id="lastC">–</b><span id="lastCq"></span></div>
+    </div>
     <div class="card">
       <h2>Ajouter un biberon</h2>
       <div class="quick">
@@ -83,6 +86,7 @@
       <button id="next" aria-label="Mois suivant">›</button>
     </div>
     <div class="seg"><button id="mList" class="on">Liste</button><button id="mCal">Calendrier</button></div>
+    <button id="addPast" class="primary wide" type="button">+ Ajouter un oubli</button>
     <div id="summary" class="summary"></div>
     <div id="listView"></div>
     <div class="card" id="cal" hidden></div>
@@ -95,7 +99,7 @@
   <a href="#objectif"><span>🎯</span>Objectif</a>
   <a href="#history"><span>📅</span>Historique</a>
 </nav>
-<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle">
+<div id="modal" class="ov" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle">
   <div class="sheet">
     <div class="m-ico">🗑️</div>
     <h3 id="mTitle"></h3>
@@ -103,7 +107,26 @@
     <div class="m-btns"><button id="mNo" type="button">Garder</button><button id="mYes" type="button">Supprimer</button></div>
   </div>
 </div>
-<div id="toast" role="status"></div>
+<div id="edit" class="ov" hidden role="dialog" aria-modal="true" aria-labelledby="eTitle">
+  <form class="sheet" id="eForm">
+    <h3 id="eTitle"></h3>
+    <div id="eType" class="seg"><button type="button" data-t="biberon" class="on">🍼 Biberon</button><button type="button" data-t="caca">💩 Caca</button></div>
+    <label>Jour<input id="eDay" type="date" required></label>
+    <label>Heure<input id="eTime" type="time" required></label>
+    <label id="eQtyL">Quantité (ml)<input id="eQty" type="number" inputmode="numeric" min="1" max="1000"></label>
+    <div class="m-btns"><button id="eNo" type="button">Annuler</button><button id="eYes" type="submit">Enregistrer</button></div>
+  </form>
+</div>
+<div id="pin" class="ov" hidden role="dialog" aria-modal="true" aria-labelledby="pinTitle">
+  <div class="sheet pin-sheet">
+    <div class="m-ico">🔒</div>
+    <h3 id="pinTitle">Code d'accès</h3>
+    <p id="pinMsg"></p>
+    <div id="pinDots" class="dots"></div>
+    <div id="keys" class="keys"></div>
+  </div>
+</div>
+<div id="toast" role="status"><span id="toastMsg"></span><button id="toastBtn" type="button" hidden>Annuler</button></div>
 <script src="app.js"></script>
 </body>
 </html>
